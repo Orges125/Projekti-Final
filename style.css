@@ -1,0 +1,14 @@
+/* Teksti brenda të gjitha card-eve, paragrafëve, titujve, span-eve dhe small */
+body, p, h1, h2, h3, h4, h5, h6, span, small, li, a {
+    color: #fff !important;
+}
+
+/* Input dhe select */
+input, select, option {
+    color: #fff !important;
+}
+
+/* Placeholder i input */
+input::placeholder {
+    color: rgba(255,255,255,0.8) !important;
+}

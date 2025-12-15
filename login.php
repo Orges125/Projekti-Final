@@ -2,135 +2,69 @@
 session_start();
 require "config.php";
 
-if(isset($_POST['login'])){
-    $username = $_POST['username'];
+// Inicializo variablën e gabimit
+$error = "";
+
+// Procesi i login
+if (isset($_POST['login'])) {
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username=?");
+    // Merr përdoruesin nga databaza
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
 
-    if($result->num_rows === 1){
-        $user = $result->fetch_assoc();
+    if ($user && password_verify($password, $user['password'])) {
+        // Login i suksesshëm
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = strtolower(trim($user['role']));
 
-        // verify hashed password
-        if(password_verify($password, $user['password'])){
-            session_start();
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-
-            // redirect bazuar në role
-            if($user['role'] === 'admin'){
-                header("Location: dashboard.php");
-            } else {
-                header("Location: home.php");
-            }
+        // Redirect bazuar në rol
+        if ($_SESSION['role'] === 'admin') {
+            header("Location: dashboard.php");
             exit();
         } else {
-            $error = "Password incorrect!";
+            header("Location: home.php");
+            exit();
         }
     } else {
-        $error = "User not found!";
+        $error = "Invalid username or password!";
     }
 }
-
-
 ?>
-
-
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
-
-    <!-- Bootstrap -->
+    <meta charset="UTF-8">
+    <title>Login - Barber Shop</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-
-    <style>
-        body {
-            background: url('images/barber.jpg') no-repeat center center/cover;
-            height: 100vh;
-            position: relative;
-        }
-
-        /* Dark transparent layer */
-        .overlay {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(3px);
-        }
-
-        .login-card {
-            position: relative;
-            z-index: 10;
-            width: 380px;
-            border-radius: 15px;
-            background: rgba(255,255,255,0.12);
-            backdrop-filter: blur(12px);
-            padding: 30px;
-            color: white;
-            box-shadow: 0px 5px 25px rgba(0,0,0,0.4);
-        }
-
-        .form-control {
-            border-radius: 10px;
-            background: rgba(255,255,255,0.3);
-            border: none;
-            color: white;
-        }
-
-        .form-control::placeholder {
-            color: #eee;
-        }
-
-        .btn-custom {
-            background: #0d6efd;
-            border-radius: 10px;
-        }
-    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
-
-<body>
-
-<div class="overlay"></div>
+<body class="bg-dark">
 
 <div class="container d-flex justify-content-center align-items-center" style="height:100vh;">
+    <div class="card p-4 shadow" style="width:400px; background-color:#2c2c2c; color:#fff;">
+        <h3 class="text-center mb-3"><i class="fas fa-cut"></i> Login</h3>
 
-    <div class="login-card">
-
-        <h3 class="text-center mb-3">
-            <i class="bi bi-person-circle"></i> Login
-        </h3>
-
-        <?php if(isset($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger text-center"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
 
         <form method="POST">
-
-            <div class="mb-3">
-                <label><i class="bi bi-person"></i> Username</label>
-                <input type="text" name="username" class="form-control" placeholder="Enter username" required>
-            </div>
-
-            <div class="mb-3">
-                <label><i class="bi bi-lock"></i> Password</label>
-                <input type="password" name="password" class="form-control" placeholder="Enter password" required>
-            </div>
-
-            <button class="btn btn-custom w-100 py-2">Login</button>
+            <input type="text" name="username" class="form-control mb-3" placeholder="Username" required>
+            <input type="password" name="password" class="form-control mb-3" placeholder="Password" required>
+            <button type="submit" name="login" class="btn btn-warning w-100"><i class="fas fa-right-to-bracket"></i> Login</button>
         </form>
 
-        <p class="text-center mt-3">
-            <a href="signup.php" class="text-light text-decoration-none">Create an account</a>
-        </p>
-
+        <a href="signup.php" class="d-block text-center mt-3 text-white">Create account</a>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html>
