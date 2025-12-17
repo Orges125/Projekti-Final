@@ -36,6 +36,7 @@ $barbers = $conn->query("SELECT * FROM barbers");
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
+    
     body {
         background: #1c1c1c;
         color: #fff;
@@ -120,10 +121,15 @@ $barbers = $conn->query("SELECT * FROM barbers");
         margin-top: 50px;
         color: #fff;
     }
-
-    /* Për të gjithë tekstin faqes */
     body, p, h1, h2, h3, h4, h5, h6, span, small, a, li {
         color: #fff !important;
+    }
+    .banner-img {
+        width: 100%;
+        max-height: 400px;
+        object-fit: cover;
+        border-radius: 15px;
+        margin-bottom: 50px;
     }
 </style>
 </head>
@@ -142,6 +148,11 @@ $barbers = $conn->query("SELECT * FROM barbers");
 </nav>
 
 <div class="container container-home">
+
+    <!-- Banner -->
+    <div class="text-center">
+        <img src="images/img.jpg" alt="Barber Shop" class="banner-img">
+    </div>
 
     <!-- Booking Section -->
     <div class="card card-custom mx-auto" style="max-width: 800px;">
@@ -172,7 +183,14 @@ $barbers = $conn->query("SELECT * FROM barbers");
     <!-- About Us Section -->
     <div class="card card-custom mx-auto">
         <h3 class="section-title">About Us</h3>
-        <p class="text-center">Welcome to our Barber Shop! We provide professional haircuts and grooming services with experienced barbers who care about your style and confidence.</p>
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <p>Welcome to our Barber Shop! We provide professional haircuts and grooming services with experienced barbers who care about your style and confidence.</p>
+            </div>
+            <div class="col-md-6">
+                <img src="images/img.jpg2.avif" class="img-fluid rounded" alt="About Us">
+            </div>
+        </div>
     </div>
 
     <!-- Services Section -->
@@ -242,6 +260,7 @@ $barbers = $conn->query("SELECT * FROM barbers");
         <p><i class="fas fa-phone"></i> +1 234 567 890</p>
         <p><i class="fas fa-envelope"></i> info@barbershop.com</p>
     </div>
+
 </div>
 
 <!-- Footer -->
