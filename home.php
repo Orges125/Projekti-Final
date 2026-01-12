@@ -14,7 +14,8 @@ if (isset($_POST['book'])) {
     $barber_id = $_POST['barber_id'];
     $booking_date = $_POST['booking_date'];
 
-    $stmt = $conn->prepare("INSERT INTO bookings (user_id, barber_id, booking_date) VALUES (?, ?, ?)");
+    // Fut rezervimin me status pending
+    $stmt = $conn->prepare("INSERT INTO bookings (user_id, barber_id, booking_date, status) VALUES (?, ?, ?, 'pending')");
     $stmt->bind_param("iis", $user_id, $barber_id, $booking_date);
     if ($stmt->execute()) {
         $msg = "Booking successful!";
@@ -25,6 +26,26 @@ if (isset($_POST['book'])) {
 
 // Marrim listën e berbers
 $barbers = $conn->query("SELECT * FROM barbers");
+
+// Marrim rezervimet e përdoruesit
+$reservations = $conn->query("
+    SELECT b.id, b.booking_date, b.status, br.name AS barber_name
+    FROM bookings b
+    JOIN barbers br ON b.barber_id = br.id
+    WHERE b.user_id = " . intval($_SESSION['user_id']) . "
+    ORDER BY b.booking_date DESC
+");
+
+// Anulo rezervim
+if (isset($_POST['cancel'])) {
+    $booking_id = $_POST['booking_id'];
+    $stmt = $conn->prepare("DELETE FROM bookings WHERE id=? AND user_id=?");
+    $stmt->bind_param("ii", $booking_id, $_SESSION['user_id']);
+    $stmt->execute();
+    header("Location: home.php");
+    exit();
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -36,101 +57,17 @@ $barbers = $conn->query("SELECT * FROM barbers");
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
-    
-    body {
-        background: #1c1c1c;
-        color: #fff;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .navbar-custom {
-        background-color: #2c2c2c;
-        padding: 10px 20px;
-    }
-    .navbar-custom .navbar-brand {
-        font-weight: bold;
-        color: #f0a500;
-    }
-    .navbar-custom .nav-link {
-        color: #fff !important;
-        margin-left: 15px;
-    }
-    .container-home {
-        padding: 50px 15px;
-    }
-    .card-custom {
-        background-color: #2a2a2a;
-        border-radius: 15px;
-        padding: 30px;
-        box-shadow: 0 0 15px rgba(0,0,0,0.5);
-        margin-bottom: 40px;
-        color: #fff;
-    }
-    input, select, option {
-        background-color: #1c1c1c !important;
-        color: #fff !important;
-        border: 1px solid #f0a500 !important;
-    }
-    input::placeholder {
-        color: rgba(255,255,255,0.8) !important;
-    }
-    button.btn-success {
-        background-color: #f0a500;
-        border: none;
-    }
-    button.btn-success:hover {
-        background-color: #e09400;
-    }
-    .barber-card {
-        background-color: #2c2c2c;
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 20px;
-        text-align: center;
-        transition: transform 0.3s;
-        color: #fff;
-    }
-    .barber-card:hover {
-        transform: scale(1.05);
-    }
-    .barber-card i {
-        font-size: 40px;
-        color: #f0a500;
-        margin-bottom: 10px;
-    }
-    .section-title {
-        color: #f0a500;
-        margin-bottom: 30px;
-        text-align: center;
-    }
-    .service-card {
-        background-color: #2a2a2a;
-        padding: 20px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-        text-align: center;
-        transition: transform 0.3s;
-        color: #fff;
-    }
-    .service-card:hover {
-        transform: scale(1.05);
-    }
-    footer {
-        background-color: #2c2c2c;
-        padding: 30px 15px;
-        text-align: center;
-        margin-top: 50px;
-        color: #fff;
-    }
-    body, p, h1, h2, h3, h4, h5, h6, span, small, a, li {
-        color: #fff !important;
-    }
-    .banner-img {
-        width: 100%;
-        max-height: 400px;
-        object-fit: cover;
-        border-radius: 15px;
-        margin-bottom: 50px;
-    }
+body { background: #1c1c1c; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+.navbar-custom { background-color: #2c2c2c; padding: 10px 20px; }
+.navbar-custom .navbar-brand { font-weight: bold; color: #f0a500; }
+.navbar-custom .nav-link { color: #fff !important; margin-left: 15px; }
+.container-home { padding: 50px 15px; }
+.card-custom { background-color: #2a2a2a; border-radius: 15px; padding: 30px; box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 40px; color: #fff; }
+input, select, option { background-color: #1c1c1c !important; color: #fff !important; border: 1px solid #f0a500 !important; }
+input::placeholder { color: rgba(255,255,255,0.8) !important; }
+button.btn-success { background-color: #f0a500; border: none; }
+button.btn-success:hover { background-color: #e09400; }
+.table td, .table th { color: #fff !important; }
 </style>
 </head>
 <body>
@@ -148,11 +85,6 @@ $barbers = $conn->query("SELECT * FROM barbers");
 </nav>
 
 <div class="container container-home">
-
-    <!-- Banner -->
-    <div class="text-center">
-        <img src="images/img.jpg" alt="Barber Shop" class="banner-img">
-    </div>
 
     <!-- Booking Section -->
     <div class="card card-custom mx-auto" style="max-width: 800px;">
@@ -180,92 +112,47 @@ $barbers = $conn->query("SELECT * FROM barbers");
         </form>
     </div>
 
-    <!-- About Us Section -->
-    <div class="card card-custom mx-auto">
-        <h3 class="section-title">About Us</h3>
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <p>Welcome to our Barber Shop! We provide professional haircuts and grooming services with experienced barbers who care about your style and confidence.</p>
-            </div>
-            <div class="col-md-6">
-                <img src="images/img.jpg2.avif" class="img-fluid rounded" alt="About Us">
-            </div>
-        </div>
-    </div>
-
-    <!-- Services Section -->
-    <h3 class="section-title">Our Services</h3>
-    <div class="row">
-        <div class="col-md-4">
-            <div class="service-card">
-                <i class="fas fa-cut fa-2x"></i>
-                <h5>Haircut</h5>
-                <p>Precision haircuts tailored to your style.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="service-card">
-                <i class="fas fa-beard fa-2x"></i>
-                <h5>Beard Styling</h5>
-                <p>Professional beard trims and grooming.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="service-card">
-                <i class="fas fa-spa fa-2x"></i>
-                <h5>Shaves & Treatments</h5>
-                <p>Relaxing shaves and skin treatments.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Barbers Section -->
-    <h3 class="section-title mt-5">Meet Our Barbers</h3>
-    <div class="row">
-        <?php
-        $barbers_list = $conn->query("SELECT * FROM barbers");
-        while($barber = $barbers_list->fetch_assoc()):
-        ?>
-        <div class="col-md-4">
-            <div class="barber-card">
-                <i class="fas fa-user-tie"></i>
-                <h5><?php echo htmlspecialchars($barber['name']); ?></h5>
-                <p><?php echo $barber['experience']; ?> years experience</p>
-            </div>
-        </div>
-        <?php endwhile; ?>
-    </div>
-
-    <!-- Testimonials Section -->
-    <h3 class="section-title mt-5">Testimonials</h3>
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card card-custom">
-                <p>"Great service! My haircut was perfect and the barbers are very professional."</p>
-                <small>- John Doe</small>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card card-custom">
-                <p>"I love the atmosphere and the attention to detail. Highly recommended!"</p>
-                <small>- Michael Smith</small>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contact Section -->
-    <h3 class="section-title mt-5">Contact Us</h3>
-    <div class="card card-custom mx-auto" style="max-width: 600px; text-align:center;">
-        <p><i class="fas fa-map-marker-alt"></i> 123 Main Street, City</p>
-        <p><i class="fas fa-phone"></i> +1 234 567 890</p>
-        <p><i class="fas fa-envelope"></i> info@barbershop.com</p>
+    <!-- Rezervimet e mia -->
+    <div class="card card-custom mx-auto" style="max-width: 900px;">
+        <h3 class="mb-4 text-center"><i class="fas fa-list"></i> My Reservations</h3>
+        <table class="table table-bordered text-white">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Barber</th>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while($row = $reservations->fetch_assoc()): ?>
+                    <?php $dt = new DateTime($row['booking_date']); ?>
+                    <tr>
+                        <td><?= $row['id']; ?></td>
+                        <td><?= htmlspecialchars($row['barber_name']); ?></td>
+                        <td><?= $dt->format('Y-m-d H:i'); ?></td>
+                        <td><?= ucfirst($row['status']); ?></td>
+                        <td>
+                            <?php if($row['status'] === 'pending'): ?>
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="booking_id" value="<?= $row['id']; ?>">
+                                    <button type="submit" name="cancel" class="btn btn-danger btn-sm">Cancel</button>
+                                </form>
+                            <?php else: ?>
+                                <em>N/A</em>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
     </div>
 
 </div>
 
-<!-- Footer -->
-<footer>
-    <p>&copy; <?php echo date("Y"); ?> Barber Shop. All rights reserved.</p>
+<footer class="text-center mt-5 mb-3 text-white">
+    &copy; <?php echo date("Y"); ?> Barber Shop. All rights reserved.
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -7,6 +7,8 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== 'admin') {
     exit();
 }
 
+$edit_id = isset($_POST['edit']) ? $_POST['id'] : null;
+
 /* ================= BARBER CRUD ================= */
 
 // ADD BARBER
@@ -16,6 +18,20 @@ if (isset($_POST['add'])) {
 
     $stmt = $conn->prepare("INSERT INTO barbers (name, experience) VALUES (?, ?)");
     $stmt->bind_param("si", $name, $experience);
+    $stmt->execute();
+
+    header("Location: dashboard.php");
+    exit();
+}
+
+// UPDATE BARBER (SAVE)
+if (isset($_POST['save'])) {
+    $id = $_POST['id'];
+    $name = $_POST['name'];
+    $experience = $_POST['experience'];
+
+    $stmt = $conn->prepare("UPDATE barbers SET name=?, experience=? WHERE id=?");
+    $stmt->bind_param("sii", $name, $experience, $id);
     $stmt->execute();
 
     header("Location: dashboard.php");
@@ -36,63 +52,57 @@ if (isset($_POST['delete'])) {
 
 /* ================= RESERVATIONS ================= */
 
-// ACCEPT
+// ACCEPT RESERVATION
 if (isset($_POST['accept'])) {
     $id = $_POST['id'];
-
-    $stmt = $conn->prepare("UPDATE reservations SET status='accepted' WHERE id=?");
+    $stmt = $conn->prepare("UPDATE bookings SET status='accepted' WHERE id=?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-
     header("Location: dashboard.php");
     exit();
 }
 
-// REJECT
+// REJECT RESERVATION
 if (isset($_POST['reject'])) {
     $id = $_POST['id'];
-
-    $stmt = $conn->prepare("UPDATE reservations SET status='rejected' WHERE id=?");
+    $stmt = $conn->prepare("UPDATE bookings SET status='rejected' WHERE id=?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-
     header("Location: dashboard.php");
     exit();
 }
 
 /* ================= FETCH DATA ================= */
 
+// Barbers list
 $barbers = $conn->query("SELECT * FROM barbers");
 
-/*
-  🔑 IMPORTANT JOIN:
-  reservations.user_id → users.id
-*/
+// Reservations list
 $reservations = $conn->query("
     SELECT 
-        r.id,
-        r.reservation_datetime,
-        r.status,
+        b.id,
+        b.booking_date,
+        b.status,
         u.username AS customer_name,
-        b.name AS barber_name
-    FROM reservations r
-    JOIN users u ON r.user_id = u.id
-    JOIN barbers b ON r.barber_id = b.id
-    ORDER BY r.reservation_datetime DESC
+        br.name AS barber_name
+    FROM bookings b
+    JOIN users u ON b.user_id = u.id
+    JOIN barbers br ON b.barber_id = br.id
+    ORDER BY b.booking_date DESC
 ");
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<title>Admin Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
 <div class="container mt-5">
-    <h3 class="mb-4">Welcome, <?= htmlspecialchars($_SESSION["username"]); ?> 👋</h3>
+    <h3 class="mb-4">Admin Dashboard</h3>
 
     <!-- ADD BARBER -->
     <div class="card p-3 mb-4">
@@ -112,32 +122,46 @@ $reservations = $conn->query("
 
     <!-- BARBERS LIST -->
     <div class="card p-3 mb-4">
-        <h5>Barbers List</h5>
-        <table class="table table-bordered">
+        <h5>Barbers</h5>
+        <table class="table table-bordered align-middle">
             <thead>
             <tr>
                 <th>ID</th>
                 <th>Name</th>
                 <th>Experience</th>
-                <th>Action</th>
+                <th>Actions</th>
             </tr>
             </thead>
             <tbody>
             <?php while ($row = $barbers->fetch_assoc()): ?>
                 <tr>
-                    <td><?= $row['id']; ?></td>
-                    <td><?= htmlspecialchars($row['name']); ?></td>
-                    <td><?= $row['experience']; ?> yrs</td>
-                    <td>
-                        <form method="POST" style="display:inline;">
+                    <form method="POST">
+                        <td><?= $row['id']; ?></td>
+                        <td>
+                            <?php if ($edit_id == $row['id']): ?>
+                                <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($row['name']); ?>" required>
+                            <?php else: ?>
+                                <?= htmlspecialchars($row['name']); ?>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($edit_id == $row['id']): ?>
+                                <input type="number" name="experience" class="form-control" value="<?= $row['experience']; ?>" required>
+                            <?php else: ?>
+                                <?= $row['experience']; ?> yrs
+                            <?php endif; ?>
+                        </td>
+                        <td class="d-flex gap-2">
                             <input type="hidden" name="id" value="<?= $row['id']; ?>">
-                            <button name="delete"
-                                    class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Delete this barber?')">
-                                Delete
-                            </button>
-                        </form>
-                    </td>
+                            <?php if ($edit_id == $row['id']): ?>
+                                <button name="save" class="btn btn-success btn-sm">Save</button>
+                                <a href="dashboard.php" class="btn btn-secondary btn-sm">Cancel</a>
+                            <?php else: ?>
+                                <button name="edit" class="btn btn-primary btn-sm">Edit</button>
+                                <button name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete this barber?')">Delete</button>
+                            <?php endif; ?>
+                        </td>
+                    </form>
                 </tr>
             <?php endwhile; ?>
             </tbody>
@@ -145,7 +169,7 @@ $reservations = $conn->query("
     </div>
 
     <!-- RESERVATIONS -->
-    <div class="card p-3">
+    <div class="card p-3 mb-4">
         <h5>Reservations</h5>
         <table class="table table-bordered align-middle">
             <thead>
@@ -153,25 +177,20 @@ $reservations = $conn->query("
                 <th>ID</th>
                 <th>Customer</th>
                 <th>Barber</th>
-                <th>Date</th>
-                <th>Time</th>
+                <th>Date & Time</th>
                 <th>Status</th>
                 <th>Action</th>
             </tr>
             </thead>
             <tbody>
             <?php while ($row = $reservations->fetch_assoc()): ?>
-                <?php
-                    $dt = new DateTime($row['reservation_datetime']);
-                ?>
                 <tr>
                     <td><?= $row['id']; ?></td>
                     <td><?= htmlspecialchars($row['customer_name']); ?></td>
                     <td><?= htmlspecialchars($row['barber_name']); ?></td>
-                    <td><?= $dt->format('Y-m-d'); ?></td>
-                    <td><?= $dt->format('H:i'); ?></td>
+                    <td><?= date("Y-m-d H:i", strtotime($row['booking_date'])); ?></td>
                     <td><?= ucfirst($row['status']); ?></td>
-                    <td>
+                    <td class="d-flex gap-2">
                         <?php if ($row['status'] === 'pending'): ?>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="id" value="<?= $row['id']; ?>">
@@ -190,6 +209,7 @@ $reservations = $conn->query("
             </tbody>
         </table>
     </div>
+
 </div>
 
 </body>
